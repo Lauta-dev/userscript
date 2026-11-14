@@ -12,6 +12,8 @@
 (function () {
   'use strict';
 
+  alert("Hello")
+
   /* ---------- 1. CSS (se inyecta lo antes posible) ---------- */
 
   const CSS = `
