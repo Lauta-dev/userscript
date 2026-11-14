@@ -10,9 +10,7 @@
 // ==/UserScript==
 
 (function () {
-  'use strict';
-
-  alert("Hello")
+  "use strict";
 
   /* ---------- 1. CSS (se inyecta lo antes posible) ---------- */
 
@@ -129,68 +127,96 @@
   `;
 
   const root = document.documentElement;
-  if (root) root.classList.add('yt-lite');
-  else addEventListener('DOMContentLoaded', () => document.documentElement.classList.add('yt-lite'), { once: true });
+  if (root) root.classList.add("yt-lite");
+  else
+    addEventListener(
+      "DOMContentLoaded",
+      () => document.documentElement.classList.add("yt-lite"),
+      { once: true },
+    );
 
   function injectStyle() {
-    if (document.getElementById('yt-lite-style')) return true;
+    if (document.getElementById("yt-lite-style")) return true;
     const host = document.head || document.documentElement;
     if (!host) return false;
-    const style = document.createElement('style');
-    style.id = 'yt-lite-style';
+    const style = document.createElement("style");
+    style.id = "yt-lite-style";
     style.textContent = CSS;
     host.appendChild(style);
     return true;
   }
   if (!injectStyle()) {
     // document-start: aún no hay <head>; inyectar apenas aparezca
-    new MutationObserver((_, obs) => { if (injectStyle()) obs.disconnect(); })
-      .observe(document, { childList: true, subtree: true });
-    addEventListener('DOMContentLoaded', injectStyle, { once: true });
+    new MutationObserver((_, obs) => {
+      if (injectStyle()) obs.disconnect();
+    }).observe(document, { childList: true, subtree: true });
+    addEventListener("DOMContentLoaded", injectStyle, { once: true });
   }
 
   /* ---------- 2. Mantenimiento del DOM ---------- */
 
   // ¿El navegador soporta :has()? Si no, el barrido JS suple al CSS
-  const supportsHas = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('selector(:has(*))');
+  const supportsHas =
+    typeof CSS !== "undefined" &&
+    CSS.supports &&
+    CSS.supports("selector(:has(*))");
 
   function tuneBackground() {
     // Fija el color de fondo real del tema para las barras sólidas
     try {
       const bg = getComputedStyle(document.body).backgroundColor;
-      if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
-        root.style.setProperty('--yt-lite-bg', bg);
+      if (bg && bg !== "transparent" && bg !== "rgba(0, 0, 0, 0)") {
+        root.style.setProperty("--yt-lite-bg", bg);
       }
-    } catch (_) { /* noop */ }
+    } catch (_) {
+      /* noop */
+    }
   }
 
   function moveNav() {
     // Mueve la barra inferior (pivot bar) a la derecha del header superior
-    const header = document.querySelector('ytm-mobile-topbar-renderer header.mobile-topbar-header');
-    const pivot = document.querySelector('ytm-pivot-bar-renderer');
-    if (header && pivot && pivot.parentElement !== header) header.appendChild(pivot);
+    const header = document.querySelector(
+      "ytm-mobile-topbar-renderer header.mobile-topbar-header",
+    );
+    const pivot = document.querySelector("ytm-pivot-bar-renderer");
+    if (header && pivot && pivot.parentElement !== header)
+      header.appendChild(pivot);
   }
 
   function hideShelf(el) {
-    const target = el.closest('ytm-rich-section-renderer') ||
-                   el.closest('ytm-rich-item-renderer') || el;
-    target.style.display = 'none';
+    const target =
+      el.closest("ytm-rich-section-renderer") ||
+      el.closest("ytm-rich-item-renderer") ||
+      el;
+    target.style.display = "none";
   }
 
   function sweep() {
     // Footer que aparece de forma diferida (enlaces legales, etc.)
-    document.querySelectorAll('footer, #footer, ytm-footer-renderer, ytm-guide-links-renderer')
-      .forEach((el) => { el.style.display = 'none'; });
+    document
+      .querySelectorAll(
+        "footer, #footer, ytm-footer-renderer, ytm-guide-links-renderer",
+      )
+      .forEach((el) => {
+        el.style.display = "none";
+      });
 
     if (supportsHas) return; // el CSS :has ya cubre esto
 
     // Fallback sin :has: publicaciones
-    document.querySelectorAll('ytm-backstage-post-thread-renderer, ytm-backstage-post-renderer')
+    document
+      .querySelectorAll(
+        "ytm-backstage-post-thread-renderer, ytm-backstage-post-renderer",
+      )
       .forEach(hideShelf);
     // Fallback sin :has: Shorts del feed
-    document.querySelectorAll('ytm-shorts-lockup-view-model').forEach(hideShelf);
+    document
+      .querySelectorAll("ytm-shorts-lockup-view-model")
+      .forEach(hideShelf);
     document.querySelectorAll('a[href*="/shorts/"]').forEach((a) => {
-      hideShelf(a.closest('ytm-rich-section-renderer, ytm-rich-item-renderer') || a);
+      hideShelf(
+        a.closest("ytm-rich-section-renderer, ytm-rich-item-renderer") || a,
+      );
     });
   }
 
@@ -211,15 +237,27 @@
     tuneBackground();
     moveNav();
     sweep();
-    new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
-    addEventListener('yt-navigate-finish', schedule); // navegaciones SPA de YouTube
+    new MutationObserver(schedule).observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+    addEventListener("yt-navigate-finish", schedule); // navegaciones SPA de YouTube
     return true;
   }
 
   if (!start()) {
-    const obs = new MutationObserver((_, o) => { if (start()) o.disconnect(); });
+    const obs = new MutationObserver((_, o) => {
+      if (start()) o.disconnect();
+    });
     obs.observe(document, { childList: true, subtree: true });
-    addEventListener('DOMContentLoaded', () => { start(); obs.disconnect(); }, { once: true });
+    addEventListener(
+      "DOMContentLoaded",
+      () => {
+        start();
+        obs.disconnect();
+      },
+      { once: true },
+    );
   }
 
   /* ---------- 3. Reproducción aunque la pestaña pierda el foco ---------- */
@@ -229,13 +267,27 @@
   // que siempre está visible y se bloquea el evento visibilitychange antes de
   // que llegue a los listeners del reproductor.
   try {
-    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-    Object.defineProperty(document, 'webkitHidden', { configurable: true, get: () => false });
-    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
-    Object.defineProperty(document, 'webkitVisibilityState', { configurable: true, get: () => 'visible' });
-  } catch (_) { /* noop */ }
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => false,
+    });
+    Object.defineProperty(document, "webkitHidden", {
+      configurable: true,
+      get: () => false,
+    });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    Object.defineProperty(document, "webkitVisibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+  } catch (_) {
+    /* noop */
+  }
 
-  for (const type of ['visibilitychange', 'webkitvisibilitychange']) {
+  for (const type of ["visibilitychange", "webkitvisibilitychange"]) {
     addEventListener(type, (e) => e.stopImmediatePropagation(), true);
   }
 
@@ -246,22 +298,30 @@
   let cursorEl = null;
   let cursorTimer = 0;
 
-  addEventListener('mousemove', (e) => {
-    const target = e.target;
-    const player = target && target.closest ? target.closest('.html5-video-player') : null;
-    clearTimeout(cursorTimer);
-    if (cursorEl && cursorEl !== player) {
-      cursorEl.classList.remove('yt-lite-cursor-off');
-      cursorEl = null;
-    }
-    if (!player) { cursorEl = null; return; }
-    if (cursorEl === player) {
-      player.classList.remove('yt-lite-cursor-off');
-      cursorEl = null;
-    }
-    cursorTimer = setTimeout(() => {
-      player.classList.add('yt-lite-cursor-off');
-      cursorEl = player;
-    }, 1000);
-  }, true);
+  addEventListener(
+    "mousemove",
+    (e) => {
+      const target = e.target;
+      const player =
+        target && target.closest ? target.closest(".html5-video-player") : null;
+      clearTimeout(cursorTimer);
+      if (cursorEl && cursorEl !== player) {
+        cursorEl.classList.remove("yt-lite-cursor-off");
+        cursorEl = null;
+      }
+      if (!player) {
+        cursorEl = null;
+        return;
+      }
+      if (cursorEl === player) {
+        player.classList.remove("yt-lite-cursor-off");
+        cursorEl = null;
+      }
+      cursorTimer = setTimeout(() => {
+        player.classList.add("yt-lite-cursor-off");
+        cursorEl = player;
+      }, 1000);
+    },
+    true,
+  );
 })();
