@@ -40,6 +40,16 @@
       transition: none !important;
       -webkit-transition: none !important;
     }
+    /* Al scrollear YouTube deja el header visible en modo "ghost" pero con
+       pointer-events: none, así que los clicks atravesaban. Lo forzamos
+       interactivo (pointer-events se hereda, así que alcanza a los hijos,
+       incluida la pivot bar integrada y el searchbox). */
+    html.yt-lite ytm-mobile-topbar-renderer,
+    html.yt-lite ytm-header,
+    html.yt-lite header.mobile-topbar-header,
+    html.yt-lite header.ghost-header {
+      pointer-events: auto !important;
+    }
 
     /* --- Feed: sin publicaciones ni Shorts --- */
     html.yt-lite ytm-backstage-post-thread-renderer,
@@ -87,7 +97,7 @@
       min-width: 0;
     }
     html.yt-lite header.mobile-topbar-header > ytm-pivot-bar-renderer {
-      position: static !important;
+      position: relative !important;
       inset: auto !important;
       flex: 0 0 auto;
       margin-left: auto;
@@ -97,7 +107,14 @@
       background: transparent !important;
       justify-content: flex-end !important;
       gap: 2px;
-      z-index: auto !important;
+      z-index: 2 !important;
+      /* El topbar tiene pointer-events: none en modo ghost y sólo algunos
+         hijos traen auto explícito. Al mudar la pivot bar adentro heredaba
+         ese none; lo forzamos en el host y en todos sus descendientes. */
+      pointer-events: auto !important;
+    }
+    html.yt-lite header.mobile-topbar-header ytm-pivot-bar-renderer * {
+      pointer-events: auto !important;
     }
     html.yt-lite header.mobile-topbar-header .pivot-bar-item-tab {
       height: auto !important;
@@ -179,8 +196,11 @@
       "ytm-mobile-topbar-renderer header.mobile-topbar-header",
     );
     const pivot = document.querySelector("ytm-pivot-bar-renderer");
-    if (header && pivot && pivot.parentElement !== header)
-      header.appendChild(pivot);
+    if (!header || !pivot) return;
+    if (pivot.parentElement !== header) header.appendChild(pivot);
+    // Por si YouTube lo dejó como inline (un !important de stylesheet no gana
+    // a un inline !important), forzamos que la barra reciba eventos.
+    pivot.style.setProperty("pointer-events", "auto", "important");
   }
 
   function hideShelf(el) {
