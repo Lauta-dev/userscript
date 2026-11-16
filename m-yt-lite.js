@@ -137,8 +137,12 @@
     }
 
     /* --- Cursor oculto sobre el video (tras ~1 s quieto) --- */
-    html.yt-lite .html5-video-player.yt-lite-cursor-off,
-    html.yt-lite .html5-video-player.yt-lite-cursor-off * {
+    /* Se aplica al container completo, no sólo al .html5-video-player: en m.youtube
+       los controles/overlays pueden ser hermanos y son los que reciben el hover. */
+    html.yt-lite.yt-lite-cursor-idle .html5-video-player,
+    html.yt-lite.yt-lite-cursor-idle .html5-video-player *,
+    html.yt-lite.yt-lite-cursor-idle .player-container,
+    html.yt-lite.yt-lite-cursor-idle .player-container * {
       cursor: none !important;
     }
   `;
@@ -313,35 +317,73 @@
 
   /* ---------- 4. Cursor oculto sobre el video ---------- */
 
-  // Si el mouse queda quieto ~1 s dentro del reproductor se oculta el cursor;
-  // reaparece en cuanto se mueve.
-  let cursorEl = null;
-  let cursorTimer = 0;
+  // Antes se detectaba con e.target.closest('.html5-video-player'), pero en
+  // m.youtube los controles personalizados (has-player-custom-control) son
+  // overlays hermanos: el evento caía fuera del player y nunca se ocultaba.
+  // Ahora se usa la posición del rect del reproductor y se oculta el cursor
+  // del elemento real que hay debajo del puntero.
+  let lastX = -1;
+  let lastY = -1;
+  let idleTimer = 0;
+  let idleInterval = 0;
+  let styled = [];
 
-  addEventListener(
-    "mousemove",
-    (e) => {
-      const target = e.target;
-      const player =
-        target && target.closest ? target.closest(".html5-video-player") : null;
-      clearTimeout(cursorTimer);
-      if (cursorEl && cursorEl !== player) {
-        cursorEl.classList.remove("yt-lite-cursor-off");
-        cursorEl = null;
-      }
-      if (!player) {
-        cursorEl = null;
-        return;
-      }
-      if (cursorEl === player) {
-        player.classList.remove("yt-lite-cursor-off");
-        cursorEl = null;
-      }
-      cursorTimer = setTimeout(() => {
-        player.classList.add("yt-lite-cursor-off");
-        cursorEl = player;
-      }, 1000);
-    },
-    true,
-  );
+  function videoRect() {
+    const player =
+      document.querySelector("#movie_player") ||
+      document.querySelector(".html5-video-player") ||
+      document.querySelector("#player");
+    if (!player) return null;
+    const r = player.getBoundingClientRect();
+    return r.width && r.height ? r : null;
+  }
+
+  function overVideo() {
+    if (lastX < 0 || lastY < 0) return false;
+    const r = videoRect();
+    return (
+      !!r &&
+      lastX >= r.left &&
+      lastX <= r.right &&
+      lastY >= r.top &&
+      lastY <= r.bottom
+    );
+  }
+
+  function paintIdle() {
+    const el = document.elementFromPoint(lastX, lastY);
+    if (el && styled.indexOf(el) === -1) {
+      el.style.setProperty("cursor", "none", "important");
+      styled.push(el);
+    }
+  }
+
+  function showCursor() {
+    clearTimeout(idleTimer);
+    clearInterval(idleInterval);
+    idleInterval = 0;
+    document.documentElement.classList.remove("yt-lite-cursor-idle");
+    for (const el of styled) el.style.removeProperty("cursor");
+    styled = [];
+  }
+
+  function onMove(e) {
+    lastX = e.clientX;
+    lastY = e.clientY;
+    showCursor();
+    if (!overVideo()) return;
+    idleTimer = setTimeout(() => {
+      document.documentElement.classList.add("yt-lite-cursor-idle");
+      paintIdle();
+      // Si YouTube reemplaza el elemento bajo el puntero mientras sigue quieto,
+      // repintamos para que el cursor no reaparezca.
+      idleInterval = setInterval(paintIdle, 250);
+    }, 1000);
+  }
+
+  addEventListener("mousemove", onMove, true);
+  addEventListener("mouseover", onMove, true);
+  addEventListener("mouseout", (e) => {
+    if (!e.relatedTarget) showCursor(); // salió de la ventana
+  }, true);
 })();
